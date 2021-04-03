@@ -22,10 +22,23 @@
 
             render(bits, value, header)
             {
-                let need_action_col = false;
-                let rows_str = '';
+                let th = header.split(',');
+                if (th.length < 2)
+                {
+                    th = ['Bit', 'Value'];
+                }
+
+                let html_str = `
+                    <table>
+                        <tr>
+                            <th>${th[0].trim()}</th>
+                            <th>${th[1].trim()}</th>
+                        </tr>`;
+
                 this.fields = [];
                 let idx = 0;
+
+                
 
                 for (const bit of bits.split(','))
                 {
@@ -37,46 +50,10 @@
                     const bit_value = (value & mask) >> idx;
                     idx += len;
 
-                    const button = row[2]==='t' ? '<td><button>Toggle</button></td>' : '';
-
-                    rows_str += `<tr><td>${name}</td><td>${bit_value}</td>${button}</tr>`
-
-
-                    if (button !== '')
-                    {
-                        need_action_col = true;
-                    }
+                    html_str += `<tr><td>${name}</td><td>${bit_value}</td></tr>`
                 }
 
-
-                let th = header.split(',');
-                if (need_action_col)
-                {
-                    if (th.length < 3)
-                    {
-                        th = ['Bit', 'Value', 'Action'];
-                    }
-                }
-                else
-                {
-                    if (th.length < 2)
-                    {
-                        th = ['Bit', 'Value'];
-                    }
-                }
-
-                const action_col = need_action_col ? `<th>${th[2].trim()}</th>` : '';
-
-                let header_str = `
-                    <table>
-                        <tr>
-                            <th>${th[0].trim()}</th>
-                            <th>${th[1].trim()}</th>
-                            ${action_col}
-                        </tr>`;
-
-
-                const html_str = header_str + rows_str + '</table>';
+                html_str += '</table>'
 
                 this.innerHTML = html_str;
 
@@ -133,6 +110,6 @@
 <html>
     <body>
         <h1>Web component testing ground</h1>
-        <pwtk-bitfield id='bf-id' bits='A:1:t, B, C:1:t, D:4' header='Name, Value' value='0x55'></pwtk-bitfield>
+        <pwtk-bitfield id='bf-id' bits='A, B, C, D, E, F:3' header='Name, Value' value='0x55'></pwtk-bitfield>
     </body>
 </html>
