@@ -60,6 +60,16 @@
                 this.tbody = this.querySelector('table tbody')
             }
 
+            set value(val)
+            {
+                this.setAttribute('value', val);
+            }
+
+            get value()
+            {
+                return this.getAttribute('value');
+            }
+
             connectedCallback()
             {
                 const value = Number(this.attributes.value.value);
@@ -104,12 +114,117 @@
             }
         }
 
+
+        class Paramlist extends HTMLElement {
+
+            constructor()
+            {
+                super();
+                this.fields = [];
+            }
+
+            render(bits, value, header)
+            {
+                let th = header.split(',');
+                if (th.length < 4)
+                {
+                    th = ['Param', 'Value', 'New', 'Action'];
+                }
+
+                let html_str = `
+                    <table>
+                        <tr>
+                            <th>${th[0].trim()}</th>
+                            <th>${th[1].trim()}</th>
+                            <th>${th[2].trim()}</th>
+                            <th>${th[3].trim()}</th>
+                        </tr>`;
+
+                for (const bit of bits.split(','))
+                {
+                    const name = bit.trim();
+
+                    html_str += `<tr>
+                                    <td>${name}</td>
+                                    <td>0</td>
+                                    <td><input type="number"></td>
+                                    <td><button>Set</button></td>
+                                </tr>`
+                }
+
+                html_str += '</table>'
+
+                this.innerHTML = html_str;
+
+                this.tbody = this.querySelector('table tbody')
+            }
+
+            connectedCallback()
+            {
+                const value = this.attributes.value.value;
+                const bits = this.attributes.bits.value;
+                const header = this.attributes.header.value;
+
+                this.render(bits, value, header);
+            }
+
+            static get observedAttributes()
+            {
+                return ['value', 'bits'];
+            }
+
+            update_value(value)
+            {
+                let shift = 0;
+                for (const [i, len] of this.fields.entries())
+                {
+                    const mask = (2**len-1) << shift;
+                    const bit_value = (value & mask) >> shift;
+                    shift += len;
+                    this.tbody.children[i+1].children[1].textContent = bit_value;
+                }
+            }
+
+            set value(val)
+            {
+                console.log('set value');
+                this.setAttribute('value', val);
+            }
+
+            get value()
+            {
+                console.log('get value');
+                return this.getAttribute('value');
+            }
+
+            attributeChangedCallback(attrName, oldValue, newValue)
+            {
+                console.log(attrName);
+                if (newValue !== oldValue) {
+                    if (attrName == 'value')
+                    {
+                        this.update_value(newValue);
+                    }
+                    else if (attrName == 'bits')
+                    {
+                        const value = Number(this.attributes.value.value);
+                        const header = this.attributes.header.value;
+                        this.render(newValue, value, header);
+                    }
+                }
+            }
+        }
+
         window.customElements.define('pwtk-bitfield', Bitfield);
+        window.customElements.define('pwtk-paramlist', Paramlist);
     </script>
 </head>
 <html>
     <body>
         <h1>Web component testing ground</h1>
         <pwtk-bitfield id='bf-id' bits='A, B, C, D, E, F:3' header='Name, Value' value='0x55'></pwtk-bitfield>
+        <hr>
+        <pwtk-paramlist id='bf-id' bits='A, B, C, D' header='Param, Value' value='1, 2, 3, 4'></pwtk-bitfield>
+        
     </body>
 </html>
