@@ -10,6 +10,18 @@
             padding: 4px;
         }
 
+        table div {
+            background: white;
+            width: 1em;
+            height: 1em;
+            border: 1px solid lightgray;
+            border-radius: 0.2em;
+        }
+
+        .active {
+            background: springgreen;
+        }
+
     </style>
     <script>
         class Bitfield extends HTMLElement {
@@ -23,9 +35,9 @@
             render(bits, value, header)
             {
                 let th = header.split(',');
-                if (th.length < 2)
+                if (th.length < 3)
                 {
-                    th = ['Bit', 'Value'];
+                    th = ['Bit', 'Name', 'Value'];
                 }
 
                 let html_str = `
@@ -33,12 +45,11 @@
                         <tr>
                             <th>${th[0].trim()}</th>
                             <th>${th[1].trim()}</th>
+                            <th>${th[2].trim()}</th>
                         </tr>`;
 
                 this.fields = [];
                 let idx = 0;
-
-                
 
                 for (const bit of bits.split(','))
                 {
@@ -50,7 +61,18 @@
                     const bit_value = (value & mask) >> idx;
                     idx += len;
 
-                    html_str += `<tr><td>${name}</td><td>${bit_value}</td></tr>`
+                    const rowspan_str = len > 1 ? `rowspan="${len}"` : ''
+
+                    html_str += `<tr>
+                                    <td><div></div></td>
+                                    <td ${rowspan_str}>${name}</td>
+                                    <td ${rowspan_str}>${bit_value}</td>
+                                 </tr>`;
+
+                    for (let i=1; i<len; i++)
+                    {
+                        html_str += `<tr><td><div></div></td></tr>`;
+                    }
                 }
 
                 html_str += '</table>'
@@ -77,6 +99,7 @@
                 const header = this.hasAttribute('header') ? this.attributes.header.value: 'Bit, Value';
 
                 this.render(bits, value, header);
+                this.update_value(value);
             }
 
             static get observedAttributes()
@@ -91,8 +114,21 @@
                 {
                     const mask = (2**len-1) << shift;
                     const bit_value = (value & mask) >> shift;
+                    this.tbody.children[shift+1].children[2].textContent = bit_value;
+
+                    for (let i=0; i<len; i++)
+                    {
+                        if (bit_value & (1 << i))
+                        {
+                            this.tbody.children[shift+1 + i].children[0].children[0].classList.add('active');
+                        }
+                        else
+                        {
+                            this.tbody.children[shift+1 + i].children[0].children[0].classList.remove('active');
+                        }
+                    }
+
                     shift += len;
-                    this.tbody.children[i+1].children[1].textContent = bit_value;
                 }
             }
             
@@ -222,9 +258,25 @@
 <html>
     <body>
         <h1>Web component testing ground</h1>
-        <pwtk-bitfield id='bf-id' bits='A, B, C, D, E, F:3' header='Name, Value' value='0x55'></pwtk-bitfield>
+        <pwtk-bitfield id='bf-id' bits='A, B:2, C, D, E, F:2' header='Name, Value' value='0x55'></pwtk-bitfield>
         <hr>
         <pwtk-paramlist id='bf-id' bits='A, B, C, D' header='Param, Value' value='1, 2, 3, 4'></pwtk-bitfield>
-        
+        <hr>
+        <table>
+            <tr>
+                <th>A</th>
+                <th>B</th>
+            </tr>
+            <tr>
+                <td rowspan="3">1</td>
+                <td>2</td>
+            </tr>
+            <tr>
+                <td>3</td>
+            </tr>
+            <tr>
+                <td>4</td>
+            </tr>
+        </table>
     </body>
 </html>
