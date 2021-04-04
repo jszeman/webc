@@ -10,186 +10,18 @@
             padding: 4px;
         }
 
-        .bitfield_led {
-            background: white;
-            width: 0.8em;
-            height: 0.8em;
-            border: 1px solid lightgray;
-            border-radius: 0.2em;
-        }
-
-        .bitfield_led_on {
-            background: springgreen;
-        }
-
     </style>
     <script>
-        /*
-         * pwtk-bitfield
-         *
-         * Example: <pwtk-bitfield id='bf-id' bits='A, B:2, C, D, E, F:2' header='Bit, Name, Value' ledonly value='0x55' caption='Bitfield'></pwtk-bitfield>
-         * 
-         * Attributes:
-         *      bits: A comma separated list of field_name:width pairs. If the width is 1, it may be omitted.
-         *      value: Initial value to display.
-         *      header: A comma separated list of 3 column headers.
-         *      ledonly: If the attribute is present, the last column will be hidden.
-         *      caption: Table caption.
-         * 
-         * Observed attributes:
-         *      The bits and value attributes may be modified in runtime and the component will update the
-         *      table to reflect the new values.
-         */
-        class Bitfield extends HTMLElement {
-
-            constructor()
-            {
-                super();
-                this.fields = [];
-            }
-
-            render(bits, value, header, numbers, caption)
-            {
-                let th = header.split(',');
-                if (th.length < 3)
-                {
-                    th = ['Bit', 'Name', 'Value'];
-                }
-
-                const val_hdr_str = numbers ? `<th>${th[2].trim()}</th>` : '';
-                const caption_str = caption ? `<caption>${caption}</caption>` : '';
-
-                let html_str = `
-                    <table>
-                        ${caption_str}
-                        <tr>
-                            <th>${th[0].trim()}</th>
-                            <th>${th[1].trim()}</th>
-                            ${val_hdr_str}
-                        </tr>`;
-
-                this.fields = [];
-                let idx = 0;
-
-                for (const bit of bits.split(','))
-                {
-                    const row = bit.trim().split(':');
-                    const name = row[0];
-                    const len = Number(row[1]) ? Number(row[1]) : 1;
-                    this.fields.push(len)
-                    const mask = (2**len-1) << idx;
-                    const bit_value = (value & mask) >> idx;
-                    idx += len;
-
-                    const rowspan_str = len > 1 ? `rowspan="${len}"` : ''
-                    const val_td_str = numbers ? `<td ${rowspan_str}>${bit_value}</td>` : '';
-
-                    html_str += `<tr>
-                                    <td><div class='bitfield_led'></div></td>
-                                    <td ${rowspan_str}>${name}</td>
-                                    ${val_td_str}
-                                 </tr>`;
-
-                    for (let i=1; i<len; i++)
-                    {
-                        html_str += `<tr><td><div class='bitfield_led'></td></tr>`;
-                    }
-                }
-
-                html_str += '</table>'
-
-                this.innerHTML = html_str;
-
-                this.tbody = this.querySelector('table tbody')
-            }
-
-            set value(val)
-            {
-                this.setAttribute('value', val);
-            }
-
-            get value()
-            {
-                return this.getAttribute('value');
-            }
-
-            connectedCallback()
-            {
-                const value = this.hasAttribute('value') ? Number(this.attributes.value.value) : 0;
-                const bits = this.hasAttribute('bits') ?this.attributes.bits.value : '1, 2, 3, 4, 5, 6, 7, 8';
-                const header = this.hasAttribute('header') ? this.attributes.header.value: 'Bit, Value';
-                const numbers = this.hasAttribute('numbers');
-                const caption = this.hasAttribute('caption') ? this.attributes.caption.value: '';
-
-                this.render(bits, value, header, numbers, caption);
-                this.update_value(value);
-            }
-
-            static get observedAttributes()
-            {
-                return ['value', 'bits'];
-            }
-
-            update_value(value)
-            {
-                const numbers = this.hasAttribute('numbers');
-
-                let shift = 0;
-                for (const [i, len] of this.fields.entries())
-                {
-                    const mask = (2**len-1) << shift;
-                    const bit_value = (value & mask) >> shift;
-                    if (numbers)
-                    {
-                        this.tbody.children[shift+1].children[2].textContent = bit_value;
-                    }
-
-                    for (let i=0; i<len; i++)
-                    {
-                        if (bit_value & (1 << i))
-                        {
-                            this.tbody.children[shift+1 + i].children[0].children[0].classList.add('bitfield_led_on');
-                        }
-                        else
-                        {
-                            this.tbody.children[shift+1 + i].children[0].children[0].classList.remove('bitfield_led_on');
-                        }
-                    }
-
-                    shift += len;
-                }
-            }
-            
-            attributeChangedCallback(attrName, oldValue, newValue)
-            {
-                console.log(attrName);
-                if (newValue !== oldValue) {
-                    if (attrName == 'value')
-                    {
-                        this.update_value(newValue);
-                    }
-                    else if (attrName == 'bits')
-                    {
-                        const value = this.hasAttribute('value') ? Number(this.attributes.value.value) : 0;
-                        const header = this.hasAttribute('header') ? this.attributes.header.value: 'Bit, Value';
-                        const numbers = this.hasAttribute('numbers');
-                        const caption = this.hasAttribute('caption') ? this.attributes.caption.value: '';
-                        this.render(newValue, value, header, numbers, caption);
-                    }
-                }
-            }
-        }
-
-
         class Paramlist extends HTMLElement {
 
             constructor()
             {
                 super();
-                this.fields = [];
+                this._values = [];
+                this.change_list = [];
             }
 
-            render(bits, value, header)
+            render(names, header)
             {
                 let th = header.split(',');
                 if (th.length < 4)
@@ -206,91 +38,91 @@
                             <th>${th[3].trim()}</th>
                         </tr>`;
 
-                for (const bit of bits.split(','))
+                for (const n of names.split(','))
                 {
-                    const name = bit.trim();
+                    const name = n.trim();
 
                     html_str += `<tr>
                                     <td>${name}</td>
                                     <td>0</td>
                                     <td><input type="number"></td>
                                     <td><button>Set</button></td>
-                                </tr>`
+                                </tr>`;
+
+                    this.values.push(0);
                 }
 
-                html_str += '</table>'
+                html_str += '</table>';
 
                 this.innerHTML = html_str;
 
-                this.tbody = this.querySelector('table tbody')
+                this.tbody = this.querySelector('table tbody');
+
+                this.add_event_listeners();
+            }
+
+            add_event_listeners()
+            {
+                for (let i=1; i<this.tbody.children.length; i++)
+                {
+                    this.tbody.children[i].children[3].addEventListener('click', () => this.change(i));
+                }
+            }
+
+            change(i)
+            {
+                console.log(`request ${i} = ${this.tbody.children[i].children[2].firstChild.value}`);
+                this.change_list.push([i-1, this.tbody.children[i].children[2].firstChild.value]);
+                this.dispatchEvent(new CustomEvent('chgrequest'));
+            }
+
+            set changes(list)
+            {
+                this.change_list = list;
+            }
+
+            get changes()
+            {
+                const r = this.change_list;
+                this.change_list = [];
+                return r;
             }
 
             connectedCallback()
             {
-                const value = this.attributes.value.value;
-                const bits = this.attributes.bits.value;
+                const names = this.attributes.names.value;
                 const header = this.attributes.header.value;
 
-                this.render(bits, value, header);
+                this.render(names, header);
             }
 
-            static get observedAttributes()
+            update_values()
             {
-                return ['value', 'bits'];
-            }
-
-            update_value(value)
-            {
-                let shift = 0;
-                for (const [i, len] of this.fields.entries())
+                for (let i=1; i<this.tbody.children.length; i++)
                 {
-                    const mask = (2**len-1) << shift;
-                    const bit_value = (value & mask) >> shift;
-                    shift += len;
-                    this.tbody.children[i+1].children[1].textContent = bit_value;
+                    this.tbody.children[i].children[1].textContent = this._values[i-1];
                 }
             }
 
-            set value(val)
+            set values(v)
             {
-                console.log('set value');
-                this.setAttribute('value', val);
+                this._values = v;
+                this.update_values();
             }
 
-            get value()
+            get values()
             {
-                console.log('get value');
-                return this.getAttribute('value');
-            }
-
-            attributeChangedCallback(attrName, oldValue, newValue)
-            {
-                console.log(attrName);
-                if (newValue !== oldValue) {
-                    if (attrName == 'value')
-                    {
-                        this.update_value(newValue);
-                    }
-                    else if (attrName == 'bits')
-                    {
-                        const value = Number(this.attributes.value.value);
-                        const header = this.attributes.header.value;
-                        this.render(newValue, value, header);
-                    }
-                }
+                return this._values;
             }
         }
 
-        window.customElements.define('pwtk-bitfield', Bitfield);
         window.customElements.define('pwtk-paramlist', Paramlist);
     </script>
 </head>
 <html>
     <body>
         <h1>Web component testing ground</h1>
-        <pwtk-bitfield id='bf-id' value='0xaa'></pwtk-bitfield>
-        <hr>
-        <pwtk-paramlist id='bf-id' bits='A, B, C, D' header='Param, Value' value='1, 2, 3, 4'></pwtk-bitfield>
+        <pwtk-paramlist id='pl-id' names='A, B, C, D' header='Name, Value, New, Action' ></pwtk-bitfield>
 
     </body>
 </html>
