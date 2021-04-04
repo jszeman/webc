@@ -40,18 +40,34 @@
         /*
          * pwtk-bitfield
          *
-         * Example: <pwtk-bitfield id='bf-id' bits='A, B:2, C, D, E, F:2' header='Bit, Name, Value' numbers value='0x55' caption='Bitfield'></pwtk-bitfield>
+         * Example: <pwtk-bitfield id='bf-id' bits='A, B:2, C, D, E, F:2' header='Bit, Name, Value' shownumbers value='0x55' caption='Bitfield'></pwtk-bitfield>
+         * 
+         * Operation:
+         *      The component will generate a 2 (optionally 3) column table as its children. The first
+         *      column contains "LEDs", or indicators that depict the state of one bit. The second
+         *      column contains field names for bits or bitgroups. The optional third column contains
+         *      the numerical value of each field.
          * 
          * Attributes:
          *      bits: A comma separated list of field_name:width pairs. If the width is 1, it may be omitted.
          *      value: Initial value to display.
          *      header: A comma separated list of 3 column headers.
-         *      ledonly: If the attribute is present, the last column will be hidden.
+         *      shownumbers: If the attribute is present a third column will be added that shows the numerical value for the fields
          *      caption: Table caption.
          * 
          * Observed attributes:
          *      The bits and value attributes may be modified in runtime and the component will update the
          *      table to reflect the new values.
+         * 
+         * Events:
+         *      chgrequest:
+         *      Emitted when the user requests set or clear action on individual bits by double-clicking the cells in 
+         *      the first column. The component will highlight the "LEDs" until the requested change is observed
+         *      in the value property.
+         * 
+         * Properties:
+         *      set_mask: Contains a mask for each bit that was requested to be set.
+         *      clear_mask: Contains a mask for each bit that was requested to be cleared.
          */
         class Bitfield extends HTMLElement {
 
@@ -64,7 +80,7 @@
                 this.listeners = [];
             }
 
-            render(bits, value, header, numbers, caption)
+            render(bits, value, header, shownumbers, caption)
             {
                 let th = header.split(',');
                 if (th.length < 3)
@@ -72,7 +88,7 @@
                     th = ['Bit', 'Name', 'Value'];
                 }
 
-                const val_hdr_str = numbers ? `<th>${th[2].trim()}</th>` : '';
+                const val_hdr_str = shownumbers ? `<th>${th[2].trim()}</th>` : '';
                 const caption_str = caption ? `<caption>${caption}</caption>` : '';
 
                 let html_str = `
@@ -98,7 +114,7 @@
                     idx += len;
 
                     const rowspan_str = len > 1 ? `rowspan="${len}"` : ''
-                    const val_td_str = numbers ? `<td ${rowspan_str}>${bit_value}</td>` : '';
+                    const val_td_str = shownumbers ? `<td ${rowspan_str}>${bit_value}</td>` : '';
 
                     html_str += `<tr>
                                     <td><div class='bitfield_led'></div></td>
@@ -195,10 +211,10 @@
                 const value = this.hasAttribute('value') ? Number(this.attributes.value.value) : 0;
                 const bits = this.hasAttribute('bits') ?this.attributes.bits.value : '1, 2, 3, 4, 5, 6, 7, 8';
                 const header = this.hasAttribute('header') ? this.attributes.header.value: 'Bit, Value';
-                const numbers = this.hasAttribute('numbers');
+                const shownumbers = this.hasAttribute('shownumbers');
                 const caption = this.hasAttribute('caption') ? this.attributes.caption.value: '';
 
-                this.render(bits, value, header, numbers, caption);
+                this.render(bits, value, header, shownumbers, caption);
                 this.update_value(value);
             }
 
@@ -209,14 +225,14 @@
 
             update_value(value)
             {
-                const numbers = this.hasAttribute('numbers');
+                const shownumbers = this.hasAttribute('shownumbers');
 
                 let shift = 0;
                 for (const [i, len] of this.fields.entries())
                 {
                     const mask = (2**len-1) << shift;
                     const bit_value = (value & mask) >> shift;
-                    if (numbers)
+                    if (shownumbers)
                     {
                         this.tbody.children[shift+1].children[2].textContent = bit_value;
                     }
@@ -253,9 +269,9 @@
                     {
                         const value = this.hasAttribute('value') ? Number(this.attributes.value.value) : 0;
                         const header = this.hasAttribute('header') ? this.attributes.header.value: 'Bit, Value';
-                        const numbers = this.hasAttribute('numbers');
+                        const shownumbers = this.hasAttribute('shownumbers');
                         const caption = this.hasAttribute('caption') ? this.attributes.caption.value: '';
-                        this.render(newValue, value, header, numbers, caption);
+                        this.render(newValue, value, header, shownumbers, caption);
                         this.update_value(value);
                     }
                 }
@@ -268,7 +284,7 @@
 <html>
     <body>
         <h1>Web component testing ground</h1>
-        <pwtk-bitfield id='bf-id' bits='A, B:2, C, D, E, F:2' header='Bit, Name, Value' numbers value='0x55' caption='Bitfield'></pwtk-bitfield>
+        <pwtk-bitfield id='bf-id' bits='A, B:2, C, D, E, F:2' header='Bit, Name, Value' value='0x55' caption='Bitfield'></pwtk-bitfield>
 
     </body>
 </html>
