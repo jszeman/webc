@@ -16,10 +16,23 @@
             height: 0.8em;
             border: 1px solid lightgray;
             border-radius: 0.2em;
+            cursor: pointer;
+        }
+
+        .bitfield_led:hover {
+            border-color: darkgreen;
         }
 
         .bitfield_led_on {
             background: springgreen;
+        }
+
+        .bitfield_change_pending {
+            border: 1px solid red;
+        }
+
+        .bitfield_change_pending:hover {
+            border: 1px solid red;
         }
 
     </style>
@@ -27,7 +40,7 @@
         /*
          * pwtk-bitfield
          *
-         * Example: <pwtk-bitfield id='bf-id' bits='A, B:2, C, D, E, F:2' header='Bit, Name, Value' ledonly value='0x55' caption='Bitfield'></pwtk-bitfield>
+         * Example: <pwtk-bitfield id='bf-id' bits='A, B:2, C, D, E, F:2' header='Bit, Name, Value' numbers value='0x55' caption='Bitfield'></pwtk-bitfield>
          * 
          * Attributes:
          *      bits: A comma separated list of field_name:width pairs. If the width is 1, it may be omitted.
@@ -46,6 +59,9 @@
             {
                 super();
                 this.fields = [];
+                this.set_mask = 0;
+                this.clear_mask = 0;
+                this.listeners = [];
             }
 
             render(bits, value, header, numbers, caption)
@@ -101,6 +117,57 @@
                 this.innerHTML = html_str;
 
                 this.tbody = this.querySelector('table tbody')
+
+                this.add_event_listeners();
+            }
+
+            add_event_listeners()
+            {
+                for (let i=1; i<this.tbody.children.length; i++)
+                {
+                    this.tbody.children[i].children[0].addEventListener('dblclick', ev => this.setmask(i-1));
+                }
+            }
+
+            setmask(i)
+            {
+                const v = this.value;
+
+                if (v & (1 << i))
+                {
+                    this.clear_mask |= (1 << i);
+                }
+                else
+                {
+                    this.set_mask |= (1 << i);
+                }
+
+                this.tbody.children[i+1].children[0].children[0].classList.add('bitfield_change_pending');
+                
+                this.dispatchEvent(new CustomEvent('chgrequest', {detail: {set_mask: this.set_mask, clr_mask: this.clear_mask}}));
+            }
+
+            update_pending_actions()
+            {
+                const v = this.value;
+                let s = this.set_mask;
+                let c = this.clear_mask;
+
+                for (let i=1; i<this.tbody.children.length; i++)
+                {
+                    const mask = 1 << (i-1);
+
+                    if ((v & mask) && (s & mask))
+                    {
+                        s &= ~mask;
+                        this.tbody.children[i].children[0].children[0].classList.remove('bitfield_change_pending');
+                    }
+                    else if (!(v & mask) && (c & mask))
+                    {
+                        c &= ~mask;
+                        this.tbody.children[i].children[0].children[0].classList.remove('bitfield_change_pending');
+                    }
+                }
             }
 
             set value(val)
@@ -111,6 +178,16 @@
             get value()
             {
                 return this.getAttribute('value');
+            }
+
+            set bits(val)
+            {
+                this.setAttribute('bits', val);
+            }
+
+            get bits()
+            {
+                return this.getAttribute('bits');
             }
 
             connectedCallback()
@@ -154,10 +231,14 @@
                         {
                             this.tbody.children[shift+1 + i].children[0].children[0].classList.remove('bitfield_led_on');
                         }
+
+
                     }
 
                     shift += len;
                 }
+
+                this.update_pending_actions();
             }
             
             attributeChangedCallback(attrName, oldValue, newValue)
@@ -175,6 +256,7 @@
                         const numbers = this.hasAttribute('numbers');
                         const caption = this.hasAttribute('caption') ? this.attributes.caption.value: '';
                         this.render(newValue, value, header, numbers, caption);
+                        this.update_value(value);
                     }
                 }
             }
@@ -186,7 +268,7 @@
 <html>
     <body>
         <h1>Web component testing ground</h1>
-        <pwtk-bitfield id='bf-id' value='0xaa'></pwtk-bitfield>
+        <pwtk-bitfield id='bf-id' bits='A, B:2, C, D, E, F:2' header='Bit, Name, Value' numbers value='0x55' caption='Bitfield'></pwtk-bitfield>
 
     </body>
 </html>
