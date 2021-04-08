@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<head>
+    <script>
+        class BoxGauge extends HTMLElement {
+
+            constructor()
+            {
+                super();
+            }
+
+            render(min, max, nom_min, nom_max, value)
+            {
+                if ((min > max) || (nom_min < min) || (nom_min > max) || (nom_max < min) || (nom_max > max) || (nom_min > nom_max))
+                {
+                    console.log('Box gauge attribute error!');
+                    return;
+                }
+
+                const scale = 148 / (max - min);
+                const offset = min * scale - 1;
+
+                const nom_min_s = nom_min * scale - offset;
+                const nom_max_s = nom_max * scale - offset;
+                const nom_width = nom_max_s - nom_min_s;
+                const value_s = value * scale - offset;
+
+                this.innerHTML = `
+                    <svg  viewBox="0 0 150 20" xmlns="http://www.w3.org/2000/svg">
+                        <title>Title</title>
+                        <rect x="${nom_min_s}" y="1" width="${nom_width}" height="18" class="box_gauge_nominal_range" />
+                        <rect x="1" y="1" width="148" height="18" class="box_gauge_border"/>
+
+                        <line x1="1" y1="1" x2="1" y2="19" class="box_gauge_pointer" transform="translate(${value_s})"/>
+                    </svg>`
+            }
+
+            connectedCallback()
+            {
+                const min = this.getAttribute('min');
+                const max = this.getAttribute('max');
+                const nom_min = this.getAttribute('nom_min');
+                const nom_max = this.getAttribute('nom_max');
+                const value = this.getAttribute('value');
+
+                this.render(min, max, nom_min, nom_max, value);
+            }
+
+
+        }
+
+        window.customElements.define('pwtk-box-gauge', BoxGauge);
+    </script>
+
+
+    <style>
+
+        svg {
+            width: 150px;
+            height: 20px;
+        }
+
+        .box_gauge_border {
+            fill: none;
+            rx: 3;
+            stroke: #e8e8e8;
+        }
+
+        .box_gauge_nominal_range {
+            fill: rgb(209, 247, 209);
+        }
+
+        .box_gauge_pointer {
+            stroke: rgb(26, 25, 25);
+            stroke-width: 2;
+        }
+
+    </style>
+</head>
+<html>
+    <body>
+        <h1>Web component testing ground</h1>
+        <svg  viewBox="0 0 150 20" xmlns="http://www.w3.org/2000/svg">
+            <rect x="60" y="1" width="30" height="18" class="box_gauge_nominal_range" />
+            <rect x="1" y="1" width="148" height="18" class="box_gauge_border" />
+
+            <line x1="0" y1="1" x2="0" y2="19" class="box_gauge_pointer" transform="translate(60)" rende/>
+            <path d="M -1 10 l -4 -2 c -4 -2 -4 0 -4 1 l 0 2 c 0 1 0 3 4 1 l 4 -2 M 1 10 l 4 -2 c 4 -2 4 0 4 1 l 0 2 c 0 1 0 3 -4 1 l -4 -2" transform="translate(60)"/>
+        </svg>
+        <hr>
+        <pwtk-box-gauge id='bg' min='0' max='24' nom_min='10' nom_max='14' value='11.9'></pwtk-box-gauge>
+
+    </body>
+</html>
