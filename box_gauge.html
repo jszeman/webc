@@ -6,9 +6,10 @@
             constructor()
             {
                 super();
+                this.pointer = null;
             }
 
-            render(min, max, nom_min, nom_max, value)
+            render(min, max, nom_min, nom_max, width, height, value)
             {
                 if ((min > max) || (nom_min < min) || (nom_min > max) || (nom_max < min) || (nom_max > max) || (nom_min > nom_max))
                 {
@@ -19,19 +20,70 @@
                 const scale = 148 / (max - min);
                 const offset = min * scale - 1;
 
+                this.scale = scale;
+                this.offset = offset;
+
                 const nom_min_s = nom_min * scale - offset;
                 const nom_max_s = nom_max * scale - offset;
                 const nom_width = nom_max_s - nom_min_s;
                 const value_s = value * scale - offset;
 
                 this.innerHTML = `
-                    <svg  viewBox="0 0 150 20" xmlns="http://www.w3.org/2000/svg">
+                    <svg  viewBox="0 0 100% 100%" xmlns="http://www.w3.org/2000/svg">
                         <title>Title</title>
-                        <rect x="${nom_min_s}" y="1" width="${nom_width}" height="18" class="box_gauge_nominal_range" />
-                        <rect x="1" y="1" width="148" height="18" class="box_gauge_border"/>
+                        <rect x="${nom_min_s}" y="1" width="${nom_width}" height="${height - 2}" class="box_gauge_nominal_range" />
+                        <rect x="1" y="1" width="${width - 2}" height="${height - 2}" class="box_gauge_border"/>
 
-                        <line x1="1" y1="1" x2="1" y2="19" class="box_gauge_pointer" transform="translate(${value_s})"/>
+                        <line x1="1" y1="1" x2="1" y2="${height - 1}" class="box_gauge_pointer" transform="translate(${value_s})"/>
                     </svg>`
+
+                this.pointer = this.querySelector('line');
+                this.title = this.querySelector('title');
+                this.border = this.querySelectorAll('rect')[1];
+            }
+
+            update_value(new_value)
+            {
+                if (this.pointer)
+                {
+                    const value_s = new_value * this.scale - this.offset;
+                    this.pointer.setAttribute('transform', `translate(${value_s})`)
+
+                    if ((new_value < this.getAttribute('nom_min')) || (new_value > this.getAttribute('nom_max')))
+                    {
+                        this.border.classList.add('box_gauge_border_warn');
+                    }
+                    else
+                    {
+                        this.border.classList.remove('box_gauge_border_warn');
+                    }
+                }
+            }
+
+            get value()
+            {
+                return this.getAttribute('value');
+            }
+
+            set value(val)
+            {
+                this.setAttribute('value', val);
+            }
+
+            static get observedAttributes()
+            {
+                return ['value'];
+            }
+            
+            attributeChangedCallback(attrName, oldValue, newValue)
+            {
+                console.log(attrName);
+                if (newValue !== oldValue) {
+                    if (attrName == 'value')
+                    {
+                        this.update_value(newValue);
+                    }
+                }
             }
 
             connectedCallback()
@@ -40,9 +92,11 @@
                 const max = this.getAttribute('max');
                 const nom_min = this.getAttribute('nom_min');
                 const nom_max = this.getAttribute('nom_max');
+                const width = this.hasAttribute('width') ? this.getAttribute('width') : 150;
+                const height = this.hasAttribute('height') ? this.getAttribute('height') : 20;
                 const value = this.getAttribute('value');
 
-                this.render(min, max, nom_min, nom_max, value);
+                this.render(min, max, nom_min, nom_max, width, height, value);
             }
 
 
@@ -63,6 +117,10 @@
             fill: none;
             rx: 3;
             stroke: #e8e8e8;
+        }
+
+        .box_gauge_border_warn {
+            stroke:rgb(255, 114, 114);
         }
 
         .box_gauge_nominal_range {
