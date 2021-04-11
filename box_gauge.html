@@ -17,7 +17,7 @@
                     return;
                 }
 
-                const scale = 148 / (max - min);
+                const scale = width / (max - min);
                 const offset = min * scale - 1;
 
                 this.scale = scale;
@@ -28,18 +28,21 @@
                 const nom_width = nom_max_s - nom_min_s;
                 const value_s = value * scale - offset;
 
-                this.innerHTML = `
-                    <svg  viewBox="0 0 100% 100%" xmlns="http://www.w3.org/2000/svg">
-                        <title>Title</title>
-                        <rect x="${nom_min_s}" y="1" width="${nom_width}" height="${height - 2}" class="box_gauge_nominal_range" />
-                        <rect x="1" y="1" width="${width - 2}" height="${height - 2}" class="box_gauge_border"/>
-
-                        <line x1="1" y1="1" x2="1" y2="${height - 1}" class="box_gauge_pointer" transform="translate(${value_s})"/>
+                this.innerHTML =
+                    `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+                        <title>0</title>
+                        <circle cx="${nom_min_s}" cy="${height / 2}" class="pwtk-box-gauge-nom-range"/>
+                        <circle cx="${nom_max_s}" cy="${height / 2}" class="pwtk-box-gauge-nom-range"/>
+                        <line x1="${nom_min_s}" y1="${height / 2}" x2="${nom_max_s}" y2="${height / 2}" class="pwtk-box-gauge-nom-range"/>
+                        <g transform="translate(${value_s})">
+                            <line x1="1" y1="1" x2="1" y2="${height-1}" class="pwtk-box-gauge-pointer-hl"/>
+                            <line x1="1" y1="1" x2="1" y2="${height-1}" class="pwtk-box-gauge-pointer"/>
+                        </g>
+                        <path d="M 4 1 L 1 1 L 1 ${height-1} L 4 ${height-1} M ${width-4} 1 L ${width-1} 1 L ${width-1} ${height-1} L ${width-4} ${height-1}" class="pwtk-box-gauge-border"/>
                     </svg>`
 
-                this.pointer = this.querySelector('line');
-                this.title = this.querySelector('title');
-                this.border = this.querySelectorAll('rect')[1];
+                this.pointer = this.querySelector('g');
+                this.pointer_shadow = this.querySelectorAll('g line')[0];
             }
 
             update_value(new_value)
@@ -51,12 +54,14 @@
 
                     if ((new_value < this.getAttribute('nom_min')) || (new_value > this.getAttribute('nom_max')))
                     {
-                        this.border.classList.add('box_gauge_border_warn');
+                        this.pointer_shadow.classList.add('pwtk-box-gauge-pointer-hl-warn');
                     }
                     else
                     {
-                        this.border.classList.remove('box_gauge_border_warn');
+                        this.pointer_shadow.classList.remove('pwtk-box-gauge-pointer-hl-warn');
                     }
+
+                    this.querySelector('title').textContent = new_value;
                 }
             }
 
@@ -77,7 +82,6 @@
             
             attributeChangedCallback(attrName, oldValue, newValue)
             {
-                console.log(attrName);
                 if (newValue !== oldValue) {
                     if (attrName == 'value')
                     {
@@ -93,13 +97,11 @@
                 const nom_min = this.getAttribute('nom_min');
                 const nom_max = this.getAttribute('nom_max');
                 const width = this.hasAttribute('width') ? this.getAttribute('width') : 150;
-                const height = this.hasAttribute('height') ? this.getAttribute('height') : 20;
+                const height = this.hasAttribute('height') ? this.getAttribute('height') : 10;
                 const value = this.getAttribute('value');
 
                 this.render(min, max, nom_min, nom_max, width, height, value);
             }
-
-
         }
 
         window.customElements.define('pwtk-box-gauge', BoxGauge);
@@ -107,29 +109,35 @@
 
 
     <style>
-
-        svg {
-            width: 150px;
-            height: 20px;
-        }
-
-        .box_gauge_border {
+        .pwtk-box-gauge-border {
             fill: none;
-            rx: 3;
-            stroke: #e8e8e8;
+            stroke: black;
+            stroke-width: 0.8;
+            shape-rendering: crispedges;
+            opacity: 0.5;
         }
 
-        .box_gauge_border_warn {
-            stroke:rgb(255, 114, 114);
+        .pwtk-box-gauge-nom-range {
+            stroke: black;
+            stroke-width: 0.5;
+            opacity: 0.3;
+            r: 2;
         }
 
-        .box_gauge_nominal_range {
-            fill: rgb(209, 247, 209);
-        }
-
-        .box_gauge_pointer {
-            stroke: rgb(26, 25, 25);
+        .pwtk-box-gauge-pointer {
+            stroke: black;
             stroke-width: 2;
+            shape-rendering: crispedges;
+        }
+
+        .pwtk-box-gauge-pointer-hl {
+            stroke: green;
+            stroke-width: 6;
+            opacity: 0.5;
+        }
+
+        .pwtk-box-gauge-pointer-hl-warn {
+            stroke: red;
         }
 
     </style>
@@ -137,15 +145,22 @@
 <html>
     <body>
         <h1>Web component testing ground</h1>
-        <svg  viewBox="0 0 150 20" xmlns="http://www.w3.org/2000/svg">
-            <rect x="60" y="1" width="30" height="18" class="box_gauge_nominal_range" />
-            <rect x="1" y="1" width="148" height="18" class="box_gauge_border" />
 
-            <line x1="0" y1="1" x2="0" y2="19" class="box_gauge_pointer" transform="translate(60)" rende/>
-            <path d="M -1 10 l -4 -2 c -4 -2 -4 0 -4 1 l 0 2 c 0 1 0 3 4 1 l 4 -2 M 1 10 l 4 -2 c 4 -2 4 0 4 1 l 0 2 c 0 1 0 3 -4 1 l -4 -2" transform="translate(60)"/>
-        </svg>
+        <div id='container'>
+            <pwtk-box-gauge id='bg' min='0' max='24' nom_min='10' nom_max='14' value='11.9' width="150" height="15"></pwtk-box-gauge>
+        </div>
         <hr>
-        <pwtk-box-gauge id='bg' min='0' max='24' nom_min='10' nom_max='14' value='11.9'></pwtk-box-gauge>
+
+        <div>
+        <svg width="100" height="15" viewBox="0 -7 100 14" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="30" cy="0" class="pwtk-box-gauge-nom-range"/>
+            <circle cx="60" cy="0" class="pwtk-box-gauge-nom-range"/>
+            <line x1="30" y1="0" x2="60" y2="0" class="pwtk-box-gauge-nom-range"/>
+            <line x1="40" y1="-6" x2="40" y2="6" class="pwtk-box-gauge-pointer-hl"/>
+            <line x1="40" y1="-6" x2="40" y2="6" class="pwtk-box-gauge-pointer"/>
+            <path d="M 4 -6 L 1 -6 L 1 6 L 4 6 M 96 -6 L 99 -6 L 99 6 L 96 6" class="pwtk-box-gauge-border"/>
+        </svg>
+    </div>
 
     </body>
 </html>
