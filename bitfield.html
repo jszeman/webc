@@ -75,12 +75,12 @@
             {
                 super();
                 this.fields = [];
-                this.set_mask = 0;
-                this.clear_mask = 0;
+                this._set_mask = 0;
+                this._clear_mask = 0;
                 this.listeners = [];
             }
 
-            render(bits, value, header, shownumbers, caption)
+            render(bits, value, header, shownumbers, caption, readonly)
             {
                 let th = header.split(',');
                 if (th.length < 3)
@@ -134,7 +134,10 @@
 
                 this.tbody = this.querySelector('table tbody')
 
-                this.add_event_listeners();
+                if (!readonly)
+                {
+                    this.add_event_listeners();
+                }
             }
 
             add_event_listeners()
@@ -151,39 +154,79 @@
 
                 if (v & (1 << i))
                 {
-                    this.clear_mask |= (1 << i);
+                    this._clear_mask ^= (1 << i);
                 }
                 else
                 {
-                    this.set_mask |= (1 << i);
+                    this._set_mask ^= (1 << i);
                 }
 
                 this.tbody.children[i+1].children[0].children[0].classList.add('bitfield_change_pending');
                 
-                this.dispatchEvent(new CustomEvent('chgrequest', {detail: {set_mask: this.set_mask, clr_mask: this.clear_mask}}));
+                this.dispatchEvent(new CustomEvent('chgrequest', {detail: {_set_mask: this._set_mask, clr_mask: this._clear_mask}}));
             }
+            
+            
 
             update_pending_actions()
             {
                 const v = this.value;
-                let s = this.set_mask;
-                let c = this.clear_mask;
+                let s = this._set_mask;
+                let c = this._clear_mask;
 
                 for (let i=1; i<this.tbody.children.length; i++)
                 {
                     const mask = 1 << (i-1);
-
-                    if ((v & mask) && (s & mask))
+                    
+                    if (v & mask)
                     {
-                        s &= ~mask;
-                        this.tbody.children[i].children[0].children[0].classList.remove('bitfield_change_pending');
+                        if (c & mask)
+                        {
+                            this.tbody.children[i].children[0].children[0].classList.add('bitfield_change_pending');
+                        }
+                        else
+                        {
+                            this.tbody.children[i].children[0].children[0].classList.remove('bitfield_change_pending');
+                        }
                     }
-                    else if (!(v & mask) && (c & mask))
+                    else
                     {
-                        c &= ~mask;
-                        this.tbody.children[i].children[0].children[0].classList.remove('bitfield_change_pending');
+                        if (s & mask)
+                        {
+                            this.tbody.children[i].children[0].children[0].classList.add('bitfield_change_pending');
+                        }
+                        else
+                        {
+                            this.tbody.children[i].children[0].children[0].classList.remove('bitfield_change_pending');
+                        }
                     }
                 }
+            }
+            
+            set set_mask(value)
+            {
+                this._set_mask = value;
+                this.update_pending_actions()
+            }
+            
+            get set_mask()
+            {
+                const ret = this._set_mask;
+                this._set_mask = 0; 
+                return ret;
+            }
+            
+            set clear_mask(value)
+            {
+                this._clear_mask = value;
+                this.update_pending_actions()
+            }
+            
+            get clear_mask()
+            {
+                const ret = this._clear_mask;
+                this._clear_mask = 0; 
+                return ret;
             }
 
             set value(val)
@@ -212,9 +255,10 @@
                 const bits = this.hasAttribute('bits') ?this.attributes.bits.value : '1, 2, 3, 4, 5, 6, 7, 8';
                 const header = this.hasAttribute('header') ? this.attributes.header.value: 'Bit, Value';
                 const shownumbers = this.hasAttribute('shownumbers');
+                const readonly = this.hasAttribute('readonly');
                 const caption = this.hasAttribute('caption') ? this.attributes.caption.value: '';
 
-                this.render(bits, value, header, shownumbers, caption);
+                this.render(bits, value, header, shownumbers, caption, readonly);
                 this.update_value(value);
             }
 
@@ -259,7 +303,6 @@
             
             attributeChangedCallback(attrName, oldValue, newValue)
             {
-                console.log(attrName);
                 if (newValue !== oldValue) {
                     if (attrName == 'value')
                     {
@@ -270,8 +313,9 @@
                         const value = this.hasAttribute('value') ? Number(this.attributes.value.value) : 0;
                         const header = this.hasAttribute('header') ? this.attributes.header.value: 'Bit, Value';
                         const shownumbers = this.hasAttribute('shownumbers');
+                        const readonly = this.hasAttribute('readonly');
                         const caption = this.hasAttribute('caption') ? this.attributes.caption.value: '';
-                        this.render(newValue, value, header, shownumbers, caption);
+                        this.render(newValue, value, header, shownumbers, caption, readonly);
                         this.update_value(value);
                     }
                 }
