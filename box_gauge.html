@@ -9,13 +9,16 @@
                 this.pointer = null;
             }
 
-            render(min, max, nom_min, nom_max, width, height, value)
+            render(range, width, height, value)
             {
+                const [min, nom_min, nom_max, max] = range;
                 if ((min > max) || (nom_min < min) || (nom_min > max) || (nom_max < min) || (nom_max > max) || (nom_min > nom_max))
                 {
                     console.log('Box gauge attribute error!');
                     return;
                 }
+
+                this._range = range;
 
                 const scale = width / (max - min);
                 const offset = min * scale - 1;
@@ -43,6 +46,8 @@
 
                 this.pointer = this.querySelector('g');
                 this.pointer_shadow = this.querySelectorAll('g line')[0];
+
+                this.update_value(value);
             }
 
             update_value(new_value)
@@ -52,7 +57,9 @@
                     const value_s = new_value * this.scale - this.offset;
                     this.pointer.setAttribute('transform', `translate(${value_s})`)
 
-                    if ((new_value < this.getAttribute('nom_min')) || (new_value > this.getAttribute('nom_max')))
+                    const [min, nom_min, nom_max, max] = this._range;
+
+                    if ((new_value < nom_min) || (new_value > nom_max))
                     {
                         this.pointer_shadow.classList.add('pwtk-box-gauge-pointer-hl-warn');
                     }
@@ -75,9 +82,19 @@
                 this.setAttribute('value', val);
             }
 
+            get range()
+            {
+                return this.getAttribute('range');
+            }
+
+            set range(val)
+            {
+                this.setAttribute('range', String(val));
+            }
+
             static get observedAttributes()
             {
-                return ['value'];
+                return ['value', 'range'];
             }
             
             attributeChangedCallback(attrName, oldValue, newValue)
@@ -87,26 +104,113 @@
                     {
                         this.update_value(newValue);
                     }
+                    else if (attrName == 'range')
+                    {
+                        this.connectedCallback();
+                    }
                 }
             }
 
             connectedCallback()
             {
-                const min = this.getAttribute('min');
-                const max = this.getAttribute('max');
-                const nom_min = this.getAttribute('nom_min');
-                const nom_max = this.getAttribute('nom_max');
+                const range = this.getAttribute('range').split(',').map(e => Number(e.trim()))
+
                 const width = this.hasAttribute('width') ? this.getAttribute('width') : 150;
                 const height = this.hasAttribute('height') ? this.getAttribute('height') : 10;
                 const value = this.getAttribute('value');
 
-                this.render(min, max, nom_min, nom_max, width, height, value);
+                this.render(range, width, height, value);
             }
         }
 
+        class BoxGaugeList extends HTMLElement {
+
+            constructor()
+            {
+                super();
+                this._values = [];
+                this._ranges = [];
+                this.change_list = [];
+                this.gauges = [];
+            }
+
+            render(names, header, width, height)
+            {
+                let th = header.split(',');
+                if (th.length < 2)
+                {
+                    th = ['Name', 'Value'];
+                }
+
+                let html_str = `
+                    <table>
+                        <tr>
+                            <th>${th[0].trim()}</th>
+                            <th>${th[1].trim()}</th>
+                        </tr>`;
+
+                for (const n of names.split(','))
+                {
+                    const name = n.trim();
+
+                    html_str += `<tr>
+                                    <td>${name}</td>
+                                    <td>
+                                        <pwtk-box-gauge id='bg' range='0, 1, 2, 3' value='0.5' width="${width}" height="${height}"></pwtk-box-gauge>
+                                    </td>
+                                </tr>`;
+
+                    this._values.push(0.5);
+                    this._ranges.push([0, 1, 2, 3]);
+                }
+
+                html_str += '</table>';
+
+                this.innerHTML = html_str;
+
+                const tbody = this.querySelector('table tbody');
+
+                this.gauges = [];
+                for (let i=1; i<tbody.children.length; i++)
+                {
+                    this.gauges.push(tbody.children[i].children[1].children[0]);
+                }
+            }
+
+            connectedCallback()
+            {
+                const names = this.attributes.names.value;
+                const header = this.hasAttribute('header') ? this.getAttribute('header') : '';
+                const width = this.hasAttribute('width') ? this.getAttribute('width') : '';
+                const height = this.hasAttribute('height') ? this.getAttribute('height') : '';
+
+                this.render(names, header, width, height);
+            }
+
+            update_values()
+            {
+                for (const [i, g] of this.gauges.entries())
+                {
+                    g.value = this._values[i];
+                }
+            }
+
+            set values(v)
+            {
+                this._values = v;
+                this.update_values();
+            }
+
+            get values()
+            {
+                return this._values;
+            }
+        }
+
+        window.customElements.define('pwtk-box-gauge-list', BoxGaugeList);
+
         window.customElements.define('pwtk-box-gauge', BoxGauge);
     </script>
-
 
     <style>
         .pwtk-box-gauge-border {
@@ -133,7 +237,7 @@
         .pwtk-box-gauge-pointer-hl {
             stroke: green;
             stroke-width: 6;
-            opacity: 0.5;
+            opacity: 0.3;
         }
 
         .pwtk-box-gauge-pointer-hl-warn {
@@ -147,20 +251,14 @@
         <h1>Web component testing ground</h1>
 
         <div id='container'>
-            <pwtk-box-gauge id='bg' min='0' max='24' nom_min='10' nom_max='14' value='11.9' width="150" height="15"></pwtk-box-gauge>
+            <pwtk-box-gauge id='bg' value='11.9' range="0, 10, 14, 24" width="150" height="15"></pwtk-box-gauge>
         </div>
         <hr>
 
         <div>
-        <svg width="100" height="15" viewBox="0 -7 100 14" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="30" cy="0" class="pwtk-box-gauge-nom-range"/>
-            <circle cx="60" cy="0" class="pwtk-box-gauge-nom-range"/>
-            <line x1="30" y1="0" x2="60" y2="0" class="pwtk-box-gauge-nom-range"/>
-            <line x1="40" y1="-6" x2="40" y2="6" class="pwtk-box-gauge-pointer-hl"/>
-            <line x1="40" y1="-6" x2="40" y2="6" class="pwtk-box-gauge-pointer"/>
-            <path d="M 4 -6 L 1 -6 L 1 6 L 4 6 M 96 -6 L 99 -6 L 99 6 L 96 6" class="pwtk-box-gauge-border"/>
+            <pwtk-box-gauge-list id='gl' names='A, B, C, D' width="100" height="12"></pwtk-box-gauge-list>
         </svg>
-    </div>
+        </div>
 
     </body>
 </html>
