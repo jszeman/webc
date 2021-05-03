@@ -29,7 +29,8 @@
                 const nom_min_s = nom_min * scale - offset;
                 const nom_max_s = nom_max * scale - offset;
                 const nom_width = nom_max_s - nom_min_s;
-                const value_s = value * scale - offset;
+                const value_s_t = value * scale - offset;
+                const value_s = (value_s_t) < 2 ? 2 : ((value_s_t > (width-2)) ? (width-2) : value_s_t);
 
                 this.innerHTML =
                     `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
@@ -54,7 +55,9 @@
             {
                 if (this.pointer)
                 {
-                    const value_s = new_value * this.scale - this.offset;
+                    const width = this.hasAttribute('width') ? this.getAttribute('width') : 150;
+                    const value_s_t = new_value * this.scale - this.offset;
+                    const value_s = (value_s_t) < 2 ? 2 : ((value_s_t > (width-2)) ? (width-2) : value_s_t);
                     this.pointer.setAttribute('transform', `translate(${value_s})`)
 
                     const [min, nom_min, nom_max, max] = this._range;
@@ -134,7 +137,7 @@
                 this.gauges = [];
             }
 
-            render(names, header, width, height)
+            render(names, header, caption, width, height)
             {
                 let th = header.split(',');
                 if (th.length < 2)
@@ -144,24 +147,33 @@
 
                 let html_str = `
                     <table>
+                        <caption>${caption}</caption>
                         <tr>
                             <th>${th[0].trim()}</th>
                             <th>${th[1].trim()}</th>
                         </tr>`;
 
-                for (const n of names.split(','))
+                if (0 === this._values.length)
+                {
+                    for (const n of names.split(','))
+                    {
+                        this._values.push(0.5);
+                        this._ranges.push([0, 2, 3, 4]);
+                    }
+                }
+
+                console.log(this._values);
+
+                for (const [i, n] of names.split(',').entries())
                 {
                     const name = n.trim();
 
                     html_str += `<tr>
                                     <td>${name}</td>
                                     <td>
-                                        <pwtk-box-gauge id='bg' range='0, 1, 2, 3' value='0.5' width="${width}" height="${height}"></pwtk-box-gauge>
+                                        <pwtk-box-gauge id='bg' range='${this._ranges[i]}' value='${this._values[i]}' width="${width}" height="${height}"></pwtk-box-gauge>
                                     </td>
                                 </tr>`;
-
-                    this._values.push(0.5);
-                    this._ranges.push([0, 1, 2, 3]);
                 }
 
                 html_str += '</table>';
@@ -183,8 +195,9 @@
                 const header = this.hasAttribute('header') ? this.getAttribute('header') : '';
                 const width = this.hasAttribute('width') ? this.getAttribute('width') : '';
                 const height = this.hasAttribute('height') ? this.getAttribute('height') : '';
+                const caption = this.hasAttribute('caption') ? this.getAttribute('caption') : '';
 
-                this.render(names, header, width, height);
+                this.render(names, header, caption, width, height);
             }
 
             update_values()
@@ -205,10 +218,20 @@
             {
                 return this._values;
             }
+
+            set ranges(r)
+            {
+                this._ranges = r;
+                this.connectedCallback()
+            }
+
+            get ranges()
+            {
+                return this._ranges;
+            }
         }
 
         window.customElements.define('pwtk-box-gauge-list', BoxGaugeList);
-
         window.customElements.define('pwtk-box-gauge', BoxGauge);
     </script>
 
@@ -251,12 +274,12 @@
         <h1>Web component testing ground</h1>
 
         <div id='container'>
-            <pwtk-box-gauge id='bg' value='11.9' range="0, 10, 14, 24" width="150" height="15"></pwtk-box-gauge>
+            <pwtk-box-gauge id='bg' value='30' range="0, 10, 14, 24" width="150" height="15"></pwtk-box-gauge>
         </div>
         <hr>
 
         <div>
-            <pwtk-box-gauge-list id='gl' names='A, B, C, D' width="100" height="12"></pwtk-box-gauge-list>
+            <pwtk-box-gauge-list id='gl' names='A, B, C, D' width="100" height="12" caption='box-gauge-list demo'></pwtk-box-gauge-list>
         </svg>
         </div>
 
