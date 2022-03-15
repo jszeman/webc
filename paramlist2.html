@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<head>
+    <style>
+        table, td, th {
+            border: 1px solid lightgray;
+            border-collapse: collapse;
+        }
+
+        td, th {
+            padding: 4px;
+        }
+
+    </style>
+    <script>
+        class Paramlist extends HTMLElement {
+
+            constructor()
+            {
+                super();
+                this._values = [];
+                this.change_list = [];
+                this.input_nodes = [];
+            }
+
+            render(names, header)
+            {
+                let th = header.split(',');
+                if (th.length < 4)
+                {
+                    th = ['Param', 'Value', 'New', 'Action'];
+                }
+
+                let html_str = `
+                    <table>
+                        <tr>
+                            <th>${th[0].trim()}</th>
+                            <th>${th[1].trim()}</th>
+                        </tr>`;
+
+                for (const n of names.split(','))
+                {
+                    const name = n.trim();
+
+                    html_str += `<tr>
+                                    <td>${name}</td>
+                                    <td><input type="number" value="0"></td>
+                                </tr>`;
+
+                    this.values.push(0);
+                }
+
+                html_str += '</table>';
+
+                this.innerHTML = html_str;
+
+                this.tbody = this.querySelector('table tbody');
+
+                this.add_event_listeners();
+            }
+
+            add_event_listeners()
+            {
+                for (let i=1; i<this.tbody.children.length; i++)
+                {
+                    const node = this.tbody.children[i].children[1].firstChild;
+                    this.input_nodes.push(node)
+                    node.addEventListener('keyup', (e) => {if (e.key == "Enter") this.change(i)});
+                }
+            }
+
+            change(i)
+            {
+                console.log(`request ${i} = ${this.input_nodes[i-1].value}`);
+                this.change_list.push([i-1, this.input_nodes[i-1].value]);
+                this.input_nodes[i-1].blur();
+                this.dispatchEvent(new CustomEvent('chgrequest'));
+            }
+
+            set changes(list)
+            {
+                this.change_list = list;
+            }
+
+            get changes()
+            {
+                const r = this.change_list;
+                this.change_list = [];
+                return r;
+            }
+
+            connectedCallback()
+            {
+                const names = this.attributes.names.value;
+                const header = this.attributes.header.value;
+
+                this.render(names, header);
+            }
+
+            update_values()
+            {
+                for (let i=1; i<this.tbody.children.length; i++)
+                {
+                    if (this.input_nodes[i-1] !== document.activeElement)
+                    {
+                        this.input_nodes[i-1].value = this._values[i-1];
+                    }
+                }
+            }
+
+            set values(v)
+            {
+                this._values = v;
+                this.update_values();
+            }
+
+            get values()
+            {
+                return this._values;
+            }
+        }
+
+        window.customElements.define('pwtk-paramlist', Paramlist);
+
+
+    </script>
+</head>
+<html>
+    <body>
+        <h1>Web component testing ground</h1>
+        <pwtk-paramlist id='pl-id' names='A, B, C, D' header='Name, Value, New, Action' ></pwtk-bitfield>
+
+    </body>
+    <script>
+        let test_cnt = 0;
+        const pl = document.getElementById("pl-id");
+        function test()
+        {
+            pl.values = [test_cnt, test_cnt, test_cnt, test_cnt];
+            test_cnt++;
+        }
+
+        setInterval(test, 1000);
+    </script>
+</html>
